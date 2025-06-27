@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>MySQL 脚本生成器</title>
+  <style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; margin: 40px; background: #f8f8f8; }
+    form, button { margin-bottom: 20px; }
+    label { display: flex; flex-direction: column; width: 300px; margin-bottom: 10px; }
+    textarea { width: 100%; font-family: 'Consolas', monospace; margin-bottom: 10px; }
+    h1, h2 { color: #333; }
+  </style>
+</head>
+<body>
+  <h1>MySQL 脚本生成器</h1>
+  <form id="mysqlForm">
+    <label>磁盘盘符: <input name="disk" value="D" maxlength="1" required></label>
+    <label>MySQL 版本: <input name="version" value="mysql-8.0.11-winx64" required></label>
+    <label>root 密码: <input name="password" value="123456" required></label>
+    <button type="submit">生成脚本</button>
+  </form>
+  <h2>my.ini 配置</h2>
+  <textarea id="myini" rows="13" readonly></textarea>
+  <button id="download-ini">下载 my.ini</button>
+  <h2>命令行脚本</h2>
+  <textarea id="cmd" rows="18" readonly></textarea>
+  <button id="download-install-shortcut" style="vertical-align: middle;">下载一键安装脚本 </button>
+  <button id="download-ico" style="vertical-align: middle;">
+    <img src="./img/mysqlico.ico" alt="icon" style="width:20px;height:20px;vertical-align:middle;"> 下载图标
+  </button>
+  <script type="module">
+    import { myiniTemplates } from './templates/myini_templates.js';
+    import { generateInstallAndShortcutBat } from './templates/shortcut_bat.js';
+
+    function getVersionType(version) {
+      const m3 = version.match(/(\d+\.\d+\.\d+)/);
+      if (m3 && myiniTemplates[m3[1]]) return m3[1];
+      const m2 = version.match(/(\d+\.\d+)/);
+      if (m2 && myiniTemplates[m2[1]]) return m2[1];
+      return '8.0';
+    }
+
+    document.getElementById('mysqlForm').onsubmit = function(e) {
+      e.preventDefault();
+      const f = Object.fromEntries(new FormData(this));
+      const basedir = `${f.disk}:\${f.version}`;
+      const datadir = `${basedir}\Data`;
+      const versionType = getVersionType(f.version);
+      let myini = myiniTemplates[versionType]
+        .replace('{basedir}', basedir)
+        .replace('{datadir}', datadir);
+      document.getElementById('myini').value = myini;
+
+      const bat = generateInstallAndShortcutBat(basedir, f.password);
+      document.getElementById('cmd').value = bat;
+    };
+
+    document.getElementById('download-ini').onclick = () => {
+      const blob = new Blob([document.getElementById('myini').value], {type: 'text/plain'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'my.ini';
+      a.click();
+    };
+    document.getElementById('download-install-shortcut').onclick = () => {
+      const disk = document.querySelector('[name="disk"]').value || 'D';
+      const version = document.querySelector('[name="version"]').value || 'mysql-8.0.11-winx64';
+      const password = document.querySelector('[name="password"]').value || '123456';
+      const mysqlHome = `${disk}:\\${version}`;
+      const bat = generateInstallAndShortcutBat(mysqlHome, password);
+      const blob = new Blob([bat], {type: 'text/plain'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'mysql_install.bat';
+      a.click();
+    };
+    document.getElementById('download-ico').onclick = () => {
+      const a = document.createElement('a');
+      a.href = './img/mysqlico.ico';
+      a.download = 'mysqlico.ico';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    };
+  </script>
+</body>
+</html> 

@@ -76,7 +76,7 @@
         .replace('{basedir}', basedir)
         .replace('{datadir}', datadir);
       document.getElementById('myini').value = myini;
-      const bat = generateInstallAndShortcutBat(basedir, f.password);
+      const bat = generateInstallAndShortcutBat(f.password);
       document.getElementById('cmd').value = bat;
       // 显示操作按钮区域
       document.getElementById('actions-area').classList.remove('hidden');
@@ -94,19 +94,16 @@
     document.querySelectorAll('.close-modal').forEach(btn => btn.onclick = closeModal);
 
     document.getElementById('download-ini').onclick = () => {
-      const blob = new Blob([document.getElementById('myini').value], {type: 'text/plain'});
+      const blob = new Blob(['\uFEFF', document.getElementById('myini').value], {type: 'text/plain'});
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = 'my.ini';
       a.click();
     };
     document.getElementById('download-install-shortcut').onclick = () => {
-      const disk = document.querySelector('[name="disk"]').value || 'D';
-      const version = document.querySelector('[name="version"]').value || 'mysql-8.0.11-winx64';
       const password = document.querySelector('[name="password"]').value || '123456';
-      const mysqlHome = `${disk}:\\${version}`;
-      const bat = generateInstallAndShortcutBat(mysqlHome, password);
-      const blob = new Blob([bat], {type: 'text/plain'});
+      const bat = generateInstallAndShortcutBat(password);
+      const blob = new Blob(['\uFEFF', bat], {type: 'text/plain'});
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = 'mysql_install.bat';
@@ -122,18 +119,15 @@
     };
     document.getElementById('download-all').onclick = () => {
       // 下载 my.ini
-      const iniBlob = new Blob([document.getElementById('myini').value], {type: 'text/plain'});
+      const iniBlob = new Blob(['\uFEFF', document.getElementById('myini').value], {type: 'text/plain'});
       const iniA = document.createElement('a');
       iniA.href = URL.createObjectURL(iniBlob);
       iniA.download = 'my.ini';
       iniA.click();
       // 下载 bat
-      const disk = document.querySelector('[name="disk"]').value || 'D';
-      const version = document.querySelector('[name="version"]').value || 'mysql-8.0.11-winx64';
       const password = document.querySelector('[name="password"]').value || '123456';
-      const mysqlHome = `${disk}:\\${version}`;
-      const bat = generateInstallAndShortcutBat(mysqlHome, password);
-      const batBlob = new Blob([bat], {type: 'text/plain'});
+      const bat = generateInstallAndShortcutBat(password);
+      const batBlob = new Blob(['\uFEFF', bat], {type: 'text/plain'});
       const batA = document.createElement('a');
       batA.href = URL.createObjectURL(batBlob);
       batA.download = 'mysql_install.bat';

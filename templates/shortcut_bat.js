@@ -1,42 +1,155 @@
-export function generateInstallAndShortcutBat(mysqlHome = 'D:\\mysql-8.0.11-winx64', password = '123456') {
-  const bin = `${mysqlHome}\\bin`;
-  return `@ECHO OFF
-setlocal EnableDelayedExpansion
+export function generateInstallAndShortcutBat(password = '123456') {
+  return `@echo off
+chcp 65001
+REM Set working directory to script location
+cd /d %~dp0
 
-REM MySQL 安装相关
-set "MYSQL_HOME=${mysqlHome}"
-set "MYSQL_PATH=${bin}"
+REM Enable delayed variable expansion
+setlocal enabledelayedexpansion
+
+REM Log start
+set "LOGFILE=%~dp0install_log.txt"
+echo Script started at %date% %time% >> "%LOGFILE%"
+
+REM Check if MySQL service exists
+SC QUERY mysql > NUL
+if %errorlevel% equ 0 (
+	echo MySQL service already exists. >> "%LOGFILE%"
+	echo MySQL service already exists.
+	pause
+	exit
+)
+
+REM Check if MySQL directory exists
+if not exist "%cd%\\bin\\mysqld.exe" (
+	echo MySQL bin directory or mysqld.exe not found! >> "%LOGFILE%"
+	echo MySQL bin directory or mysqld.exe not found!
+	pause
+	exit
+)
+
+echo MySQL service not found, start install... >> "%LOGFILE%"
+echo MySQL service not found, start install...
+
+REM Set MYSQL_HOME and MYSQL_ROOT_PASSWORD
+set "MYSQL_HOME=%cd%"
 set "MYSQL_ROOT_PASSWORD=${password}"
-setx /m "path" "%MYSQL_PATH%;%path%"
 
-%MYSQL_PATH%\\mysqld --initialize-insecure
-%MYSQL_PATH%\\mysqld install mysql
+REM Set system environment variable MYSQL_HOME
+SETX /M "MYSQL_HOME" "%MYSQL_HOME%" >> "%LOGFILE%"
+if %errorlevel% equ 0 (
+	echo Set MYSQL_HOME success. >> "%LOGFILE%"
+	echo Set MYSQL_HOME success.
+) else (
+	echo Set MYSQL_HOME failed. >> "%LOGFILE%"
+	echo Set MYSQL_HOME failed.
+	pause
+	exit
+)
+
+REM Initialize MySQL (no password)
+echo Init MySQL database...
+"%MYSQL_HOME%\\bin\\mysqld" --initialize-insecure
+set INIT_ERR=%errorlevel%
+echo Init MySQL return code: %INIT_ERR%
+if %INIT_ERR% neq 0 (
+	echo Init MySQL failed, code: %INIT_ERR% >> "%LOGFILE%"
+	pause
+	exit
+)
+
+REM Install MySQL service
+echo Install MySQL service...
+"%MYSQL_HOME%\\bin\\mysqld" install mysql
+set INSTALL_ERR=%errorlevel%
+echo Install MySQL service return code: %INSTALL_ERR%
+if %INSTALL_ERR% neq 0 (
+	echo Install MySQL service failed, code: %INSTALL_ERR% >> "%LOGFILE%"
+	pause
+	exit
+)
+
+REM Start MySQL service
+echo Start MySQL service...
 net start mysql
-%MYSQL_PATH%\\mysqladmin -u root password "%MYSQL_ROOT_PASSWORD%"
-%MYSQL_PATH%\\mysql -uroot -p"%MYSQL_ROOT_PASSWORD%" -e "CREATE USER 'root'@'%' IDENTIFIED BY '${password}';"
-%MYSQL_PATH%\\mysql -uroot -p"%MYSQL_ROOT_PASSWORD%" -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%';"
-%MYSQL_PATH%\\mysql -uroot -p"%MYSQL_ROOT_PASSWORD%" -e "alter user root@'localhost' identified with mysql_native_password by '${password}';"
-%MYSQL_PATH%\\mysql -uroot -p"%MYSQL_ROOT_PASSWORD%"
+set START_ERR=%errorlevel%
+echo Start MySQL service return code: %START_ERR%
+if %START_ERR% neq 0 (
+	echo Start MySQL service failed, code: %START_ERR% >> "%LOGFILE%"
+	pause
+	exit
+)
 
-timeout /t 2 >nul
+REM Set root password
+echo Set root password...
+"%MYSQL_HOME%\\bin\\mysqladmin" -u root password "%MYSQL_ROOT_PASSWORD%"
+set PASS_ERR=%errorlevel%
+echo Set root password return code: %PASS_ERR%
+if %PASS_ERR% neq 0 (
+	echo Set root password failed, code: %PASS_ERR% >> "%LOGFILE%"
+	pause
+	exit
+)
 
-REM 快捷方式相关
-set "SrcFile=%MYSQL_HOME%\\bin\\mysql.exe"
-set "Args=-uroot -p"
+REM Create remote root user
+echo Create remote root user...
+"%MYSQL_HOME%\\bin\\mysql" -uroot -p"%MYSQL_ROOT_PASSWORD%" -e "CREATE USER 'root'@'%' IDENTIFIED BY '${password}';"
+set CREATEUSER_ERR=%errorlevel%
+echo Create remote root user return code: %CREATEUSER_ERR%
+if %CREATEUSER_ERR% neq 0 (
+	echo Create remote root user failed, code: %CREATEUSER_ERR% >> "%LOGFILE%"
+	pause
+	exit
+)
+
+REM Grant privileges to remote root user
+echo Grant privileges to remote root user...
+"%MYSQL_HOME%\\bin\\mysql" -uroot -p"%MYSQL_ROOT_PASSWORD%" -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%';"
+set GRANT_ERR=%errorlevel%
+echo Grant privileges return code: %GRANT_ERR%
+if %GRANT_ERR% neq 0 (
+	echo Grant privileges failed, code: %GRANT_ERR% >> "%LOGFILE%"
+	pause
+	exit
+)
+
+REM Change local root password to mysql_native_password
+echo Change local root password to mysql_native_password...
+"%MYSQL_HOME%\\bin\\mysql" -uroot -p"%MYSQL_ROOT_PASSWORD%" -e "alter user root@'localhost' identified with mysql_native_password by '${password}';"
+set ALTER_ERR=%errorlevel%
+echo Change local root password return code: %ALTER_ERR%
+if %ALTER_ERR% neq 0 (
+	echo Change local root password failed, code: %ALTER_ERR% >> "%LOGFILE%"
+	pause
+	exit
+)
+
+echo MySQL install and config finished. >> "%LOGFILE%"
+echo MySQL install and config finished.
+
+echo.
+echo =============================================
+echo MySQL installation and configuration complete!
+echo You can now use MySQL.
+echo Please close this window manually when you are done.
+echo =============================================
+echo.
+pause >nul
+
+REM Create desktop and start menu shortcuts
 set "LnkFile=%USERPROFILE%\\Desktop\\MySQL Command Line Client.lnk"
 set "StartMenuLnkFile=%ProgramData%\\Microsoft\\Windows\\Start Menu\\Programs\\MySQL Command Line Client.lnk"
 set "IconFile=%MYSQL_HOME%\\mysqlico.ico"
+set "SrcFile=%MYSQL_HOME%\\bin\\mysql.exe"
+set "Args=-uroot -p"
 
-REM 创建桌面快捷方式
 call :CreateShort "%SrcFile%" "%Args%" "%LnkFile%" "%IconFile%"
-
-REM 创建开始菜单快捷方式
 call :CreateShort "%SrcFile%" "%Args%" "%StartMenuLnkFile%" "%IconFile%"
 
 goto :eof
 
 :CreateShort
-REM 参数：%1=目标程序 %2=参数 %3=快捷方式路径 %4=图标文件
+REM %1=target exe, %2=args, %3=lnk path, %4=icon
 set "VBSFile=%temp%\\createshortcut.vbs"
 echo Set oWS = WScript.CreateObject("WScript.Shell") > "%VBSFile%"
 echo sLinkFile = WScript.Arguments(0) >> "%VBSFile%"
@@ -48,5 +161,7 @@ echo oLink.Save >> "%VBSFile%"
 cscript //nologo "%VBSFile%" "%~3" "%~1" "%~2" "%~4"
 del "%VBSFile%"
 exit /b
+
+pause
 `;
 } 

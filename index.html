@@ -76,7 +76,7 @@
         .replace('{basedir}', basedir)
         .replace('{datadir}', datadir);
       document.getElementById('myini').value = myini;
-      const bat = generateInstallAndShortcutBat(f.password);
+      const bat = generateInstallAndShortcutBat(f.password, f.version);
       document.getElementById('cmd').value = bat;
       // 显示操作按钮区域
       document.getElementById('actions-area').classList.remove('hidden');
@@ -102,7 +102,8 @@
     };
     document.getElementById('download-install-shortcut').onclick = () => {
       const password = document.querySelector('[name="password"]').value || '123456';
-      const bat = generateInstallAndShortcutBat(password);
+      const version = document.querySelector('[name="version"]').value || '8.0';
+      const bat = generateInstallAndShortcutBat(password, version);
       const blob = new Blob(['\uFEFF', bat], {type: 'text/plain'});
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
@@ -126,7 +127,8 @@
       iniA.click();
       // 下载 bat
       const password = document.querySelector('[name="password"]').value || '123456';
-      const bat = generateInstallAndShortcutBat(password);
+      const version = document.querySelector('[name="version"]').value || '8.0';
+      const bat = generateInstallAndShortcutBat(password, version);
       const batBlob = new Blob(['\uFEFF', bat], {type: 'text/plain'});
       const batA = document.createElement('a');
       batA.href = URL.createObjectURL(batBlob);

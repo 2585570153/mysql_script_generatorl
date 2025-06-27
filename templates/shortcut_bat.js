@@ -39,6 +39,14 @@ if %errorlevel% equ 0 (
 	pause
 	exit
 )
+REM Create desktop and start menu shortcuts
+set "LnkFile=%USERPROFILE%\\Desktop\\MySQL Command Line Client.lnk"
+set "StartMenuLnkFile=%ProgramData%\\Microsoft\\Windows\\Start Menu\\Programs\\MySQL Command Line Client.lnk"
+set "IconFile=%MYSQL_HOME%\\mysqlico.ico"
+set "SrcFile=%MYSQL_HOME%\\bin\\mysql.exe"
+set "Args=-uroot -p"
+call :CreateShort "%SrcFile%" "%Args%" "%LnkFile%" "%IconFile%"
+call :CreateShort "%SrcFile%" "%Args%" "%StartMenuLnkFile%" "%IconFile%"
 REM Initialize MySQL (no password)
 echo Init MySQL database...
 "%MYSQL_HOME%\\bin\\mysqld" --initialize-insecure
@@ -119,14 +127,6 @@ echo Please close this window manually when you are done.
 echo =============================================
 echo.
 pause >nul
-REM Create desktop and start menu shortcuts
-set "LnkFile=%USERPROFILE%\\Desktop\\MySQL Command Line Client.lnk"
-set "StartMenuLnkFile=%ProgramData%\\Microsoft\\Windows\\Start Menu\\Programs\\MySQL Command Line Client.lnk"
-set "IconFile=%MYSQL_HOME%\\mysqlico.ico"
-set "SrcFile=%MYSQL_HOME%\\bin\\mysql.exe"
-set "Args=-uroot -p"
-call :CreateShort "%SrcFile%" "%Args%" "%LnkFile%" "%IconFile%"
-call :CreateShort "%SrcFile%" "%Args%" "%StartMenuLnkFile%" "%IconFile%"
 goto :eof
 :CreateShort
 REM %1=target exe, %2=args, %3=lnk path, %4=icon
@@ -185,16 +185,14 @@ if %errorlevel% equ 0 (
 	pause
 	exit
 )
-REM Initialize MySQL (no password)
-echo Init MySQL database...
-"%MYSQL_HOME%\\bin\\mysqld" --initialize-insecure
-set INIT_ERR=%errorlevel%
-echo Init MySQL return code: %INIT_ERR%
-if %INIT_ERR% neq 0 (
-	echo Init MySQL failed, code: %INIT_ERR% >> "%LOGFILE%"
-	pause
-	exit
-)
+REM Create desktop and start menu shortcuts
+set "LnkFile=%USERPROFILE%\\Desktop\\MySQL Command Line Client.lnk"
+set "StartMenuLnkFile=%ProgramData%\\Microsoft\\Windows\\Start Menu\\Programs\\MySQL Command Line Client.lnk"
+set "IconFile=%MYSQL_HOME%\\mysqlico.ico"
+set "SrcFile=%MYSQL_HOME%\\bin\\mysql.exe"
+set "Args=-uroot -p"
+call :CreateShort "%SrcFile%" "%Args%" "%LnkFile%" "%IconFile%"
+call :CreateShort "%SrcFile%" "%Args%" "%StartMenuLnkFile%" "%IconFile%"
 REM Install MySQL service
 echo Install MySQL service...
 "%MYSQL_HOME%\\bin\\mysqld" install mysql
@@ -247,7 +245,7 @@ if %GRANT_ERR% neq 0 (
 )
 REM Change local root password to mysql_native_password
 echo Change local root password to mysql_native_password...
-"%MYSQL_HOME%\\bin\\mysql" -uroot -p"%MYSQL_ROOT_PASSWORD%" -e "alter user root@'localhost' identified with mysql_native_password by '${password}';"
+"%MYSQL_HOME%\\bin\\mysql" -uroot -p"%MYSQL_ROOT_PASSWORD%" -e "FLUSH PRIVILEGES; SET PASSWORD FOR 'root'@'localhost' = PASSWORD('${password}');"
 set ALTER_ERR=%errorlevel%
 echo Change local root password return code: %ALTER_ERR%
 if %ALTER_ERR% neq 0 (
@@ -265,14 +263,6 @@ echo Please close this window manually when you are done.
 echo =============================================
 echo.
 pause >nul
-REM Create desktop and start menu shortcuts
-set "LnkFile=%USERPROFILE%\\Desktop\\MySQL Command Line Client.lnk"
-set "StartMenuLnkFile=%ProgramData%\\Microsoft\\Windows\\Start Menu\\Programs\\MySQL Command Line Client.lnk"
-set "IconFile=%MYSQL_HOME%\\mysqlico.ico"
-set "SrcFile=%MYSQL_HOME%\\bin\\mysql.exe"
-set "Args=-uroot -p"
-call :CreateShort "%SrcFile%" "%Args%" "%LnkFile%" "%IconFile%"
-call :CreateShort "%SrcFile%" "%Args%" "%StartMenuLnkFile%" "%IconFile%"
 goto :eof
 :CreateShort
 REM %1=target exe, %2=args, %3=lnk path, %4=icon

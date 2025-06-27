@@ -5,34 +5,52 @@
   <title>MySQL 脚本生成器</title>
   <script src="./js/tailwind.js"></script>
 </head>
-<body class="bg-gray-50 min-h-screen flex flex-col items-center py-10">
-  <h1 class="text-3xl font-bold text-blue-700 mb-8">MySQL 脚本生成器</h1>
-  <form id="mysqlForm" class="bg-white shadow-lg rounded-xl p-8 flex flex-col gap-4 w-full max-w-md mb-8">
-    <label class="flex flex-col gap-1 font-medium text-gray-700">磁盘盘符:
-      <input name="disk" value="D" maxlength="1" required class="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+<body class="bg-gradient-to-br from-blue-50 to-purple-100 min-h-screen flex flex-col items-center py-10">
+  <h1 class="text-4xl font-extrabold text-blue-800 mb-10 drop-shadow-lg tracking-tight">MySQL安装脚本生成器-a.d</h1>
+  <form id="mysqlForm" class="bg-white shadow-2xl rounded-2xl p-10 flex flex-col gap-6 w-full max-w-md mb-10 border border-blue-100">
+    <label class="flex flex-col gap-1 font-semibold text-gray-700">磁盘盘符:
+      <input name="disk" value="D" maxlength="1" required class="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
     </label>
-    <label class="flex flex-col gap-1 font-medium text-gray-700">MySQL 版本:
-      <input name="version" value="mysql-8.0.11-winx64" required class="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+    <label class="flex flex-col gap-1 font-semibold text-gray-700">MySQL 版本:
+      <input name="version" value="mysql-8.0.11-winx64" required class="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
     </label>
-    <label class="flex flex-col gap-1 font-medium text-gray-700">root 密码:
-      <input name="password" value="123456" required class="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+    <label class="flex flex-col gap-1 font-semibold text-gray-700">root 密码:
+      <input name="password" value="123456" required class="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
     </label>
-    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded py-2 mt-2 transition">生成脚本</button>
+    <button type="submit" class="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold rounded-lg py-2 mt-2 shadow-md transition">生成脚本</button>
   </form>
-  <div class="w-full max-w-2xl flex flex-col gap-6">
-    <div>
-      <h2 class="text-xl font-semibold text-gray-800 mb-2">my.ini 配置</h2>
-      <textarea id="myini" rows="13" readonly class="w-full border border-gray-300 rounded p-3 font-mono bg-gray-100 resize-none"></textarea>
-      <button id="download-ini" class="mt-2 bg-green-500 hover:bg-green-600 text-white rounded px-4 py-2 font-medium transition">下载 my.ini</button>
+  <div id="actions-area" class="w-full max-w-2xl flex flex-col gap-6 hidden">
+    <div class="flex gap-4 justify-center flex-wrap">
+      <button id="show-ini-modal" class="bg-green-500 hover:bg-green-600 text-white rounded-lg px-6 py-3 font-semibold shadow transition">查看 my.ini 配置</button>
+      <button id="show-cmd-modal" class="bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg px-6 py-3 font-semibold shadow transition">查看命令行脚本</button>
+      <button id="download-ico" class="bg-gray-700 hover:bg-gray-800 text-white rounded-lg px-6 py-3 font-semibold shadow flex items-center transition">
+        <img src="./img/mysqlico.ico" alt="icon" class="w-5 h-5 mr-2"> 下载图标
+      </button>
+      <button id="download-all" class="bg-blue-700 hover:bg-blue-800 text-white rounded-lg px-6 py-3 font-semibold shadow flex items-center transition">
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"/></svg> 一键全部下载
+      </button>
     </div>
-    <div>
-      <h2 class="text-xl font-semibold text-gray-800 mb-2">命令行脚本</h2>
-      <textarea id="cmd" rows="18" readonly class="w-full border border-gray-300 rounded p-3 font-mono bg-gray-100 resize-none"></textarea>
-      <div class="flex gap-3 mt-2">
-        <button id="download-install-shortcut" class="bg-yellow-500 hover:bg-yellow-600 text-white rounded px-4 py-2 font-medium transition flex items-center">下载一键安装脚本</button>
-        <button id="download-ico" class="bg-gray-700 hover:bg-gray-800 text-white rounded px-4 py-2 font-medium transition flex items-center">
-          <img src="./img/mysqlico.ico" alt="icon" class="w-5 h-5 mr-2"> 下载图标
-        </button>
+  </div>
+
+  <!-- my.ini Modal -->
+  <div id="ini-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-xl relative animate-fade-in">
+      <h2 class="text-2xl font-bold text-gray-800 mb-4">my.ini 配置</h2>
+      <textarea id="myini" rows="13" readonly class="w-full border border-gray-300 rounded p-3 font-mono bg-gray-100 resize-none mb-4"></textarea>
+      <div class="flex justify-end gap-3">
+        <button id="download-ini" class="bg-green-500 hover:bg-green-600 text-white rounded px-4 py-2 font-medium transition">下载 my.ini</button>
+        <button class="close-modal bg-gray-300 hover:bg-gray-400 text-gray-700 rounded px-4 py-2 font-medium transition">关闭</button>
+      </div>
+    </div>
+  </div>
+  <!-- CMD Modal -->
+  <div id="cmd-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-xl relative animate-fade-in">
+      <h2 class="text-2xl font-bold text-gray-800 mb-4">命令行脚本</h2>
+      <textarea id="cmd" rows="18" readonly class="w-full border border-gray-300 rounded p-3 font-mono bg-gray-100 resize-none mb-4"></textarea>
+      <div class="flex justify-end gap-3">
+        <button id="download-install-shortcut" class="bg-yellow-500 hover:bg-yellow-600 text-white rounded px-4 py-2 font-medium transition">下载一键安装脚本</button>
+        <button class="close-modal bg-gray-300 hover:bg-gray-400 text-gray-700 rounded px-4 py-2 font-medium transition">关闭</button>
       </div>
     </div>
   </div>
@@ -58,10 +76,22 @@
         .replace('{basedir}', basedir)
         .replace('{datadir}', datadir);
       document.getElementById('myini').value = myini;
-
       const bat = generateInstallAndShortcutBat(basedir, f.password);
       document.getElementById('cmd').value = bat;
+      // 显示操作按钮区域
+      document.getElementById('actions-area').classList.remove('hidden');
     };
+
+    // Modal logic
+    function showModal(id) {
+      document.getElementById(id).classList.remove('hidden');
+    }
+    function closeModal(e) {
+      e.target.closest('.fixed').classList.add('hidden');
+    }
+    document.getElementById('show-ini-modal').onclick = () => showModal('ini-modal');
+    document.getElementById('show-cmd-modal').onclick = () => showModal('cmd-modal');
+    document.querySelectorAll('.close-modal').forEach(btn => btn.onclick = closeModal);
 
     document.getElementById('download-ini').onclick = () => {
       const blob = new Blob([document.getElementById('myini').value], {type: 'text/plain'});
@@ -89,6 +119,32 @@
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+    };
+    document.getElementById('download-all').onclick = () => {
+      // 下载 my.ini
+      const iniBlob = new Blob([document.getElementById('myini').value], {type: 'text/plain'});
+      const iniA = document.createElement('a');
+      iniA.href = URL.createObjectURL(iniBlob);
+      iniA.download = 'my.ini';
+      iniA.click();
+      // 下载 bat
+      const disk = document.querySelector('[name="disk"]').value || 'D';
+      const version = document.querySelector('[name="version"]').value || 'mysql-8.0.11-winx64';
+      const password = document.querySelector('[name="password"]').value || '123456';
+      const mysqlHome = `${disk}:\\${version}`;
+      const bat = generateInstallAndShortcutBat(mysqlHome, password);
+      const batBlob = new Blob([bat], {type: 'text/plain'});
+      const batA = document.createElement('a');
+      batA.href = URL.createObjectURL(batBlob);
+      batA.download = 'mysql_install.bat';
+      batA.click();
+      // 下载 ico
+      const icoA = document.createElement('a');
+      icoA.href = './img/mysqlico.ico';
+      icoA.download = 'mysqlico.ico';
+      document.body.appendChild(icoA);
+      icoA.click();
+      document.body.removeChild(icoA);
     };
   </script>
 </body>

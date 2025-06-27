@@ -47,6 +47,21 @@ set "SrcFile=%MYSQL_HOME%\\bin\\mysql.exe"
 set "Args=-uroot -p"
 call :CreateShort "%SrcFile%" "%Args%" "%LnkFile%" "%IconFile%"
 call :CreateShort "%SrcFile%" "%Args%" "%StartMenuLnkFile%" "%IconFile%"
+
+:CreateShort
+REM %1=target exe, %2=args, %3=lnk path, %4=icon
+set "VBSFile=%temp%\\createshortcut.vbs"
+echo Set oWS = WScript.CreateObject("WScript.Shell") > "%VBSFile%"
+echo sLinkFile = WScript.Arguments(0) >> "%VBSFile%"
+echo Set oLink = oWS.CreateShortcut(sLinkFile) >> "%VBSFile%"
+echo oLink.TargetPath = WScript.Arguments(1) >> "%VBSFile%"
+echo oLink.Arguments = WScript.Arguments(2) >> "%VBSFile%"
+echo oLink.IconLocation = WScript.Arguments(3) >> "%VBSFile%"
+echo oLink.Save >> "%VBSFile%"
+cscript //nologo "%VBSFile%" "%~3" "%~1" "%~2" "%~4"
+del "%VBSFile%"
+exit /b
+
 REM Initialize MySQL (no password)
 echo Init MySQL database...
 "%MYSQL_HOME%\\bin\\mysqld" --initialize-insecure
@@ -128,20 +143,6 @@ echo =============================================
 echo.
 pause >nul
 goto :eof
-:CreateShort
-REM %1=target exe, %2=args, %3=lnk path, %4=icon
-set "VBSFile=%temp%\\createshortcut.vbs"
-echo Set oWS = WScript.CreateObject("WScript.Shell") > "%VBSFile%"
-echo sLinkFile = WScript.Arguments(0) >> "%VBSFile%"
-echo Set oLink = oWS.CreateShortcut(sLinkFile) >> "%VBSFile%"
-echo oLink.TargetPath = WScript.Arguments(1) >> "%VBSFile%"
-echo oLink.Arguments = WScript.Arguments(2) >> "%VBSFile%"
-echo oLink.IconLocation = WScript.Arguments(3) >> "%VBSFile%"
-echo oLink.Save >> "%VBSFile%"
-cscript //nologo "%VBSFile%" "%~3" "%~1" "%~2" "%~4"
-del "%VBSFile%"
-exit /b
-pause
 `;
 
 // 5.5/5.6 通用脚本模板（内容可根据实际5.5/5.6需求调整）
@@ -193,6 +194,21 @@ set "SrcFile=%MYSQL_HOME%\\bin\\mysql.exe"
 set "Args=-uroot -p"
 call :CreateShort "%SrcFile%" "%Args%" "%LnkFile%" "%IconFile%"
 call :CreateShort "%SrcFile%" "%Args%" "%StartMenuLnkFile%" "%IconFile%"
+
+:CreateShort
+REM %1=target exe, %2=args, %3=lnk path, %4=icon
+set "VBSFile=%temp%\\createshortcut.vbs"
+echo Set oWS = WScript.CreateObject("WScript.Shell") > "%VBSFile%"
+echo sLinkFile = WScript.Arguments(0) >> "%VBSFile%"
+echo Set oLink = oWS.CreateShortcut(sLinkFile) >> "%VBSFile%"
+echo oLink.TargetPath = WScript.Arguments(1) >> "%VBSFile%"
+echo oLink.Arguments = WScript.Arguments(2) >> "%VBSFile%"
+echo oLink.IconLocation = WScript.Arguments(3) >> "%VBSFile%"
+echo oLink.Save >> "%VBSFile%"
+cscript //nologo "%VBSFile%" "%~3" "%~1" "%~2" "%~4"
+del "%VBSFile%"
+exit /b
+
 REM Install MySQL service
 echo Install MySQL service...
 "%MYSQL_HOME%\\bin\\mysqld" install mysql
@@ -264,20 +280,6 @@ echo =============================================
 echo.
 pause >nul
 goto :eof
-:CreateShort
-REM %1=target exe, %2=args, %3=lnk path, %4=icon
-set "VBSFile=%temp%\\createshortcut.vbs"
-echo Set oWS = WScript.CreateObject("WScript.Shell") > "%VBSFile%"
-echo sLinkFile = WScript.Arguments(0) >> "%VBSFile%"
-echo Set oLink = oWS.CreateShortcut(sLinkFile) >> "%VBSFile%"
-echo oLink.TargetPath = WScript.Arguments(1) >> "%VBSFile%"
-echo oLink.Arguments = WScript.Arguments(2) >> "%VBSFile%"
-echo oLink.IconLocation = WScript.Arguments(3) >> "%VBSFile%"
-echo oLink.Save >> "%VBSFile%"
-cscript //nologo "%VBSFile%" "%~3" "%~1" "%~2" "%~4"
-del "%VBSFile%"
-exit /b
-pause
 `;
 
 // 主函数，按主版本号前两位选择模板
@@ -291,7 +293,7 @@ export function generateInstallAndShortcutBat(password = '123456', version = '8.
 	} else if (mainVer === '5.5' || mainVer === '5.6') {
 		return batTemplate55_56(password);
 	} else {
-		// 默认用8.0/5.7模板
-		return batTemplate80_57(password);
+		// 未匹配到合适模板时返回空字符串
+		return '';
 	}
 } 

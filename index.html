@@ -12,7 +12,7 @@
       <input name="disk" value="D" maxlength="1" required class="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
     </label>
     <label class="flex flex-col gap-1 font-semibold text-gray-700">MySQL 版本:
-      <input name="version" value="mysql-8.0.11-winx64" required class="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
+      <input name="version" value="mysql-8.0.39-winx64" required class="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
     </label>
     <label class="flex flex-col gap-1 font-semibold text-gray-700">root 密码:
       <input name="password" value="123456" required class="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
@@ -72,11 +72,19 @@
       const basedir = `${f.disk}:\\${f.version}`;
       const datadir = `${basedir}\\Data`;
       const versionType = getVersionType(f.version);
+      if (!myiniTemplates[versionType]) {
+        alert('未匹配到合适的 my.ini 配置模板！');
+        return;
+      }
       let myini = myiniTemplates[versionType]
         .replace('{basedir}', basedir)
         .replace('{datadir}', datadir);
       document.getElementById('myini').value = myini;
       const bat = generateInstallAndShortcutBat(f.password, f.version);
+      if (!bat) {
+        alert('未匹配到合适的安装脚本模板！');
+        return;
+      }
       document.getElementById('cmd').value = bat;
       // 显示操作按钮区域
       document.getElementById('actions-area').classList.remove('hidden');

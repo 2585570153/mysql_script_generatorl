@@ -112,7 +112,7 @@
       const password = document.querySelector('[name="password"]').value || '123456';
       const version = document.querySelector('[name="version"]').value || '8.0';
       const bat = generateInstallAndShortcutBat(password, version);
-      const blob = new Blob(['\uFEFF', bat], {type: 'text/plain'});
+      const blob = new Blob([bat], {type: 'text/plain'});
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = 'mysql_install.bat';
@@ -128,7 +128,7 @@
     };
     document.getElementById('download-all').onclick = () => {
       // 下载 my.ini
-      const iniBlob = new Blob(['\uFEFF', document.getElementById('myini').value], {type: 'text/plain'});
+      const iniBlob = new Blob([document.getElementById('myini').value], {type: 'text/plain'});
       const iniA = document.createElement('a');
       iniA.href = URL.createObjectURL(iniBlob);
       iniA.download = 'my.ini';

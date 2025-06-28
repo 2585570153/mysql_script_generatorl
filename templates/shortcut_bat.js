@@ -1,4 +1,4 @@
-// 8.0/5.7 通用脚本模板
+// 8.0/5.7 Universal script template
 const batTemplate80_57 = (password) => `@echo off
 chcp 65001
 REM Set working directory to script location
@@ -7,49 +7,201 @@ REM Enable delayed variable expansion
 setlocal enabledelayedexpansion
 REM Log start
 set "LOGFILE=%~dp0install_log.txt"
-echo Script started at %date% %time% >> "%LOGFILE%"
+echo [INFO] Script started at %date% %time% >> "%LOGFILE%"
 REM Check if MySQL service exists
+echo [INFO] Checking if MySQL service exists... >> "%LOGFILE%"
 SC QUERY mysql > NUL
 if %errorlevel% equ 0 (
-	echo MySQL service already exists. >> "%LOGFILE%"
+	echo [INFO] MySQL service already exists. >> "%LOGFILE%"
 	echo MySQL service already exists.
 	pause
-	exit
+	echo [ERROR] Script exited because MySQL service already exists. >> "%LOGFILE%"
+	exit /b 1
+) else (
+	echo [INFO] MySQL service not found. >> "%LOGFILE%"
 )
 REM Check if MySQL directory exists
+echo [INFO] Checking if mysqld.exe exists at %cd%\\bin\\mysqld.exe >> "%LOGFILE%"
 if not exist "%cd%\\bin\\mysqld.exe" (
-	echo MySQL bin directory or mysqld.exe not found! >> "%LOGFILE%"
+	echo [ERROR] MySQL bin directory or mysqld.exe not found! >> "%LOGFILE%"
 	echo MySQL bin directory or mysqld.exe not found!
 	pause
-	exit
+	echo [ERROR] Script exited due to missing mysqld.exe. >> "%LOGFILE%"
+	exit /b 2
+) else (
+	echo [INFO] Found mysqld.exe. >> "%LOGFILE%"
 )
-echo MySQL service not found, start install... >> "%LOGFILE%"
+echo [INFO] MySQL service not found, start install... >> "%LOGFILE%"
 echo MySQL service not found, start install...
 REM Set MYSQL_HOME and MYSQL_ROOT_PASSWORD
 set "MYSQL_HOME=%cd%"
 set "MYSQL_ROOT_PASSWORD=${password}"
+
 REM Set system environment variable MYSQL_HOME
+echo ************** Setting system environment variable MYSQL_HOME ***************
+echo.
+echo [INFO] Setting system environment variable MYSQL_HOME. >> "%LOGFILE%"
 SETX /M "MYSQL_HOME" "%MYSQL_HOME%" >> "%LOGFILE%"
 if %errorlevel% equ 0 (
-	echo Set MYSQL_HOME success. >> "%LOGFILE%"
-	echo Set MYSQL_HOME success.
+	echo [INFO] Set MYSQL_HOME success. >> "%LOGFILE%"
+	echo ************** Set system environment variable MYSQL_HOME success ***************
+	echo.
 ) else (
-	echo Set MYSQL_HOME failed. >> "%LOGFILE%"
-	echo Set MYSQL_HOME failed.
+	echo [ERROR] Set MYSQL_HOME failed. >> "%LOGFILE%"
+	echo ************** Set system environment variable MYSQL_HOME failed ***************
+	echo Set system environment variable MYSQL_HOME failed >> "%LOGFILE%"
+	echo.
 	pause
-	exit
+	echo [ERROR] Script exited due to SETX failure. >> "%LOGFILE%"
+	exit /b 3
 )
+
+REM Add MySQL bin to system PATH
+echo ***************** Setting system environment variable PATH *****************
+echo.
+echo [INFO] Adding MySQL bin to system PATH. >> "%LOGFILE%"
+SET KEY_NAME=HKEY_LOCAL_MACHINE\\SYSTEM\\ControlSet001\\Control\\Session Manager\\Environment
+SET VALUE_NAME=path
+FOR /F "tokens=2*" %%A IN ('REG.exe query "%KEY_NAME%" /v "%VALUE_NAME%"') DO (set pInstallDir=%%B)
+SET pathvalue=%pInstallDir%
+:system_path_value
+SET setpath=0
+:loop
+for /f "tokens=1* delims=;" %%a in ("%pathvalue%") do (
+	if "%%a"=="%MYSQL_HOME%\\bin" (
+		SET setpath=1
+	) 
+::Assign remaining to original copy for next iteration
+set pathvalue=%%b
+)
+::If there's still remaining, continue splitting
+if defined pathvalue goto :loop
+if "%setpath%" == "1" (
+	echo [INFO] MySQL bin already in PATH. >> "%LOGFILE%"
+	echo ***************** Set system environment variable PATH success *****************
+	echo.
+) else (
+	SETX /M "Path" "%pInstallDir%;%MYSQL_HOME%\\bin" >> "%LOGFILE%"
+	if %errorlevel% equ 0 (
+		echo [INFO] Add MySQL bin to PATH success. >> "%LOGFILE%"
+		echo **************** Set system environment variable PATH success ******************
+		echo.
+	) else (
+		echo [ERROR] Add MySQL bin to PATH failed. >> "%LOGFILE%"
+		echo ***************** Set system environment variable PATH failed *****************
+		echo Set system environment variable PATH failed >> "%LOGFILE%"
+		echo.
+		pause
+		echo [ERROR] Script exited due to SETX PATH failure. >> "%LOGFILE%"
+		exit /b 3
+	)
+)
+
+REM Initialize MySQL (no password)
+echo [INFO] Initializing MySQL database... >> "%LOGFILE%"
+"%MYSQL_HOME%\\bin\\mysqld" --initialize-insecure
+set INIT_ERR=%errorlevel%
+echo [INFO] Init MySQL return code: %INIT_ERR% >> "%LOGFILE%"
+if %INIT_ERR% neq 0 (
+	echo [ERROR] Init MySQL failed, code: %INIT_ERR% >> "%LOGFILE%"
+	pause
+	echo [ERROR] Script exited due to MySQL initialization failure. >> "%LOGFILE%"
+	exit /b 4
+)
+REM Install MySQL service
+echo [INFO] Installing MySQL service... >> "%LOGFILE%"
+"%MYSQL_HOME%\\bin\\mysqld" install mysql
+set INSTALL_ERR=%errorlevel%
+echo [INFO] Install MySQL service return code: %INSTALL_ERR% >> "%LOGFILE%"
+if %INSTALL_ERR% neq 0 (
+	echo [ERROR] Install MySQL service failed, code: %INSTALL_ERR% >> "%LOGFILE%"
+	pause
+	echo [ERROR] Script exited due to MySQL service install failure. >> "%LOGFILE%"
+	exit /b 5
+)
+REM Start MySQL service
+echo [INFO] Starting MySQL service... >> "%LOGFILE%"
+net start mysql
+set START_ERR=%errorlevel%
+echo [INFO] Start MySQL service return code: %START_ERR% >> "%LOGFILE%"
+if %START_ERR% neq 0 (
+	echo [ERROR] Start MySQL service failed, code: %START_ERR% >> "%LOGFILE%"
+	pause
+	echo [ERROR] Script exited due to MySQL service start failure. >> "%LOGFILE%"
+	exit /b 6
+)
+REM Set root password
+echo [INFO] Setting root password... >> "%LOGFILE%"
+"%MYSQL_HOME%\\bin\\mysqladmin" -u root password "%MYSQL_ROOT_PASSWORD%"
+set PASS_ERR=%errorlevel%
+echo [INFO] Set root password return code: %PASS_ERR% >> "%LOGFILE%"
+if %PASS_ERR% neq 0 (
+	echo [ERROR] Set root password failed, code: %PASS_ERR% >> "%LOGFILE%"
+	pause
+	echo [ERROR] Script exited due to root password set failure. >> "%LOGFILE%"
+	exit /b 7
+)
+REM Create remote root user
+echo [INFO] Creating remote root user... >> "%LOGFILE%"
+"%MYSQL_HOME%\\bin\\mysql" -uroot -p"%MYSQL_ROOT_PASSWORD%" -e "CREATE USER 'root'@'%' IDENTIFIED BY '${password}';"
+set CREATEUSER_ERR=%errorlevel%
+echo [INFO] Create remote root user return code: %CREATEUSER_ERR% >> "%LOGFILE%"
+if %CREATEUSER_ERR% neq 0 (
+	echo [ERROR] Create remote root user failed, code: %CREATEUSER_ERR% >> "%LOGFILE%"
+	pause
+	echo [ERROR] Script exited due to remote root user creation failure. >> "%LOGFILE%"
+	exit /b 8
+)
+REM Grant privileges to remote root user
+echo [INFO] Granting privileges to remote root user... >> "%LOGFILE%"
+"%MYSQL_HOME%\\bin\\mysql" -uroot -p"%MYSQL_ROOT_PASSWORD%" -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%';"
+set GRANT_ERR=%errorlevel%
+echo [INFO] Grant privileges return code: %GRANT_ERR% >> "%LOGFILE%"
+if %GRANT_ERR% neq 0 (
+	echo [ERROR] Grant privileges failed, code: %GRANT_ERR% >> "%LOGFILE%"
+	pause
+	echo [ERROR] Script exited due to grant privileges failure. >> "%LOGFILE%"
+	exit /b 9
+)
+REM Change local root password to mysql_native_password
+echo [INFO] Changing local root password to mysql_native_password... >> "%LOGFILE%"
+"%MYSQL_HOME%\\bin\\mysql" -uroot -p"%MYSQL_ROOT_PASSWORD%" -e "alter user root@'localhost' identified with mysql_native_password by '${password}';"
+set ALTER_ERR=%errorlevel%
+echo [INFO] Change local root password return code: %ALTER_ERR% >> "%LOGFILE%"
+if %ALTER_ERR% neq 0 (
+	echo [ERROR] Change local root password failed, code: %ALTER_ERR% >> "%LOGFILE%"
+	pause
+	echo [ERROR] Script exited due to alter user failure. >> "%LOGFILE%"
+	exit /b 10
+)
+echo [INFO] MySQL install and config finished. >> "%LOGFILE%"
+echo MySQL install and config finished.
+echo.
+echo =============================================
+echo MySQL installation and configuration complete!
+echo You can now use MySQL.
+echo Please close this window manually when you are done.
+echo =============================================
+echo.
+echo [INFO] Script completed successfully. >> "%LOGFILE%"
+pause >nul
+
 REM Create desktop and start menu shortcuts
+echo [INFO] Creating desktop and start menu shortcuts. >> "%LOGFILE%"
 set "LnkFile=%USERPROFILE%\\Desktop\\MySQL Command Line Client.lnk"
 set "StartMenuLnkFile=%ProgramData%\\Microsoft\\Windows\\Start Menu\\Programs\\MySQL Command Line Client.lnk"
 set "IconFile=%MYSQL_HOME%\\mysqlico.ico"
 set "SrcFile=%MYSQL_HOME%\\bin\\mysql.exe"
 set "Args=-uroot -p"
+echo [INFO] Creating shortcut: %LnkFile% >> "%LOGFILE%"
 call :CreateShort "%SrcFile%" "%Args%" "%LnkFile%" "%IconFile%"
+echo [INFO] Creating shortcut: %StartMenuLnkFile% >> "%LOGFILE%"
 call :CreateShort "%SrcFile%" "%Args%" "%StartMenuLnkFile%" "%IconFile%"
 
+goto :eof
 :CreateShort
 REM %1=target exe, %2=args, %3=lnk path, %4=icon
+echo [INFO] Creating shortcut via VBS: %3 >> "%LOGFILE%"
 set "VBSFile=%temp%\\createshortcut.vbs"
 echo Set oWS = WScript.CreateObject("WScript.Shell") > "%VBSFile%"
 echo sLinkFile = WScript.Arguments(0) >> "%VBSFile%"
@@ -61,91 +213,10 @@ echo oLink.Save >> "%VBSFile%"
 cscript //nologo "%VBSFile%" "%~3" "%~1" "%~2" "%~4"
 del "%VBSFile%"
 exit /b
-
-REM Initialize MySQL (no password)
-echo Init MySQL database...
-"%MYSQL_HOME%\\bin\\mysqld" --initialize-insecure
-set INIT_ERR=%errorlevel%
-echo Init MySQL return code: %INIT_ERR%
-if %INIT_ERR% neq 0 (
-	echo Init MySQL failed, code: %INIT_ERR% >> "%LOGFILE%"
-	pause
-	exit
-)
-REM Install MySQL service
-echo Install MySQL service...
-"%MYSQL_HOME%\\bin\\mysqld" install mysql
-set INSTALL_ERR=%errorlevel%
-echo Install MySQL service return code: %INSTALL_ERR%
-if %INSTALL_ERR% neq 0 (
-	echo Install MySQL service failed, code: %INSTALL_ERR% >> "%LOGFILE%"
-	pause
-	exit
-)
-REM Start MySQL service
-echo Start MySQL service...
-net start mysql
-set START_ERR=%errorlevel%
-echo Start MySQL service return code: %START_ERR%
-if %START_ERR% neq 0 (
-	echo Start MySQL service failed, code: %START_ERR% >> "%LOGFILE%"
-	pause
-	exit
-)
-REM Set root password
-echo Set root password...
-"%MYSQL_HOME%\\bin\\mysqladmin" -u root password "%MYSQL_ROOT_PASSWORD%"
-set PASS_ERR=%errorlevel%
-echo Set root password return code: %PASS_ERR%
-if %PASS_ERR% neq 0 (
-	echo Set root password failed, code: %PASS_ERR% >> "%LOGFILE%"
-	pause
-	exit
-)
-REM Create remote root user
-echo Create remote root user...
-"%MYSQL_HOME%\\bin\\mysql" -uroot -p"%MYSQL_ROOT_PASSWORD%" -e "CREATE USER 'root'@'%' IDENTIFIED BY '${password}';"
-set CREATEUSER_ERR=%errorlevel%
-echo Create remote root user return code: %CREATEUSER_ERR%
-if %CREATEUSER_ERR% neq 0 (
-	echo Create remote root user failed, code: %CREATEUSER_ERR% >> "%LOGFILE%"
-	pause
-	exit
-)
-REM Grant privileges to remote root user
-echo Grant privileges to remote root user...
-"%MYSQL_HOME%\\bin\\mysql" -uroot -p"%MYSQL_ROOT_PASSWORD%" -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%';"
-set GRANT_ERR=%errorlevel%
-echo Grant privileges return code: %GRANT_ERR%
-if %GRANT_ERR% neq 0 (
-	echo Grant privileges failed, code: %GRANT_ERR% >> "%LOGFILE%"
-	pause
-	exit
-)
-REM Change local root password to mysql_native_password
-echo Change local root password to mysql_native_password...
-"%MYSQL_HOME%\\bin\\mysql" -uroot -p"%MYSQL_ROOT_PASSWORD%" -e "alter user root@'localhost' identified with mysql_native_password by '${password}';"
-set ALTER_ERR=%errorlevel%
-echo Change local root password return code: %ALTER_ERR%
-if %ALTER_ERR% neq 0 (
-	echo Change local root password failed, code: %ALTER_ERR% >> "%LOGFILE%"
-	pause
-	exit
-)
-echo MySQL install and config finished. >> "%LOGFILE%"
-echo MySQL install and config finished.
-echo.
-echo =============================================
-echo MySQL installation and configuration complete!
-echo You can now use MySQL.
-echo Please close this window manually when you are done.
-echo =============================================
-echo.
-pause >nul
-goto :eof
+pause
 `;
 
-// 5.5/5.6 通用脚本模板（内容可根据实际5.5/5.6需求调整）
+// 5.5/5.6 Universal script template (content can be adjusted according to actual 5.5/5.6 requirements)
 const batTemplate55_56 = (password) => `@echo off
 chcp 65001
 REM Set working directory to script location
@@ -154,49 +225,190 @@ REM Enable delayed variable expansion
 setlocal enabledelayedexpansion
 REM Log start
 set "LOGFILE=%~dp0install_log.txt"
-echo Script started at %date% %time% >> "%LOGFILE%"
+echo [INFO] Script started at %date% %time% >> "%LOGFILE%"
 REM Check if MySQL service exists
+echo [INFO] Checking if MySQL service exists... >> "%LOGFILE%"
 SC QUERY mysql > NUL
 if %errorlevel% equ 0 (
-	echo MySQL service already exists. >> "%LOGFILE%"
+	echo [INFO] MySQL service already exists. >> "%LOGFILE%"
 	echo MySQL service already exists.
 	pause
-	exit
+	echo [ERROR] Script exited because MySQL service already exists. >> "%LOGFILE%"
+	exit /b 1
+) else (
+	echo [INFO] MySQL service not found. >> "%LOGFILE%"
 )
 REM Check if MySQL directory exists
+echo [INFO] Checking if mysqld.exe exists at %cd%\\bin\\mysqld.exe >> "%LOGFILE%"
 if not exist "%cd%\\bin\\mysqld.exe" (
-	echo MySQL bin directory or mysqld.exe not found! >> "%LOGFILE%"
+	echo [ERROR] MySQL bin directory or mysqld.exe not found! >> "%LOGFILE%"
 	echo MySQL bin directory or mysqld.exe not found!
 	pause
-	exit
+	echo [ERROR] Script exited due to missing mysqld.exe. >> "%LOGFILE%"
+	exit /b 2
+) else (
+	echo [INFO] Found mysqld.exe. >> "%LOGFILE%"
 )
-echo MySQL service not found, start install... >> "%LOGFILE%"
+echo [INFO] MySQL service not found, start install... >> "%LOGFILE%"
 echo MySQL service not found, start install...
 REM Set MYSQL_HOME and MYSQL_ROOT_PASSWORD
 set "MYSQL_HOME=%cd%"
 set "MYSQL_ROOT_PASSWORD=${password}"
+
 REM Set system environment variable MYSQL_HOME
+echo ************** Setting system environment variable MYSQL_HOME ***************
+echo.
+echo [INFO] Setting system environment variable MYSQL_HOME. >> "%LOGFILE%"
 SETX /M "MYSQL_HOME" "%MYSQL_HOME%" >> "%LOGFILE%"
 if %errorlevel% equ 0 (
-	echo Set MYSQL_HOME success. >> "%LOGFILE%"
-	echo Set MYSQL_HOME success.
+	echo [INFO] Set MYSQL_HOME success. >> "%LOGFILE%"
+	echo ************** Set system environment variable MYSQL_HOME success ***************
+	echo.
 ) else (
-	echo Set MYSQL_HOME failed. >> "%LOGFILE%"
-	echo Set MYSQL_HOME failed.
+	echo [ERROR] Set MYSQL_HOME failed. >> "%LOGFILE%"
+	echo ************** Set system environment variable MYSQL_HOME failed ***************
+	echo Set system environment variable MYSQL_HOME failed >> "%LOGFILE%"
+	echo.
 	pause
-	exit
+	echo [ERROR] Script exited due to SETX failure. >> "%LOGFILE%"
+	exit /b 3
 )
+
+REM Add MySQL bin to system PATH
+echo ***************** Setting system environment variable PATH *****************
+echo.
+echo [INFO] Adding MySQL bin to system PATH. >> "%LOGFILE%"
+SET KEY_NAME=HKEY_LOCAL_MACHINE\\SYSTEM\\ControlSet001\\Control\\Session Manager\\Environment
+SET VALUE_NAME=path
+FOR /F "tokens=2*" %%A IN ('REG.exe query "%KEY_NAME%" /v "%VALUE_NAME%"') DO (set pInstallDir=%%B)
+SET pathvalue=%pInstallDir%
+:system_path_value
+SET setpath=0
+:loop
+for /f "tokens=1* delims=;" %%a in ("%pathvalue%") do (
+	if "%%a"=="%MYSQL_HOME%\\bin" (
+		SET setpath=1
+	) 
+::Assign remaining to original copy for next iteration
+set pathvalue=%%b
+)
+::If there's still remaining, continue splitting
+if defined pathvalue goto :loop
+if "%setpath%" == "1" (
+	echo [INFO] MySQL bin already in PATH. >> "%LOGFILE%"
+	echo ***************** Set system environment variable PATH success *****************
+	echo.
+) else (
+	SETX /M "Path" "%pInstallDir%;%MYSQL_HOME%\\bin" >> "%LOGFILE%"
+	if %errorlevel% equ 0 (
+		echo [INFO] Add MySQL bin to PATH success. >> "%LOGFILE%"
+		echo **************** Set system environment variable PATH success ******************
+		echo.
+	) else (
+		echo [ERROR] Add MySQL bin to PATH failed. >> "%LOGFILE%"
+		echo ***************** Set system environment variable PATH failed *****************
+		echo Set system environment variable PATH failed >> "%LOGFILE%"
+		echo.
+		pause
+		echo [ERROR] Script exited due to SETX PATH failure. >> "%LOGFILE%"
+		exit /b 3
+	)
+)
+
+REM Install MySQL service
+echo [INFO] Installing MySQL service... >> "%LOGFILE%"
+"%MYSQL_HOME%\\bin\\mysqld" install mysql
+set INSTALL_ERR=%errorlevel%
+echo [INFO] Install MySQL service return code: %INSTALL_ERR% >> "%LOGFILE%"
+if %INSTALL_ERR% neq 0 (
+	echo [ERROR] Install MySQL service failed, code: %INSTALL_ERR% >> "%LOGFILE%"
+	pause
+	echo [ERROR] Script exited due to MySQL service install failure. >> "%LOGFILE%"
+	exit /b 4
+)
+REM Start MySQL service
+echo [INFO] Starting MySQL service... >> "%LOGFILE%"
+net start mysql
+set START_ERR=%errorlevel%
+echo [INFO] Start MySQL service return code: %START_ERR% >> "%LOGFILE%"
+if %START_ERR% neq 0 (
+	echo [ERROR] Start MySQL service failed, code: %START_ERR% >> "%LOGFILE%"
+	pause
+	echo [ERROR] Script exited due to MySQL service start failure. >> "%LOGFILE%"
+	exit /b 5
+)
+REM Set root password
+echo [INFO] Setting root password... >> "%LOGFILE%"
+"%MYSQL_HOME%\\bin\\mysqladmin" -u root password "%MYSQL_ROOT_PASSWORD%"
+set PASS_ERR=%errorlevel%
+echo [INFO] Set root password return code: %PASS_ERR% >> "%LOGFILE%"
+if %PASS_ERR% neq 0 (
+	echo [ERROR] Set root password failed, code: %PASS_ERR% >> "%LOGFILE%"
+	pause
+	echo [ERROR] Script exited due to root password set failure. >> "%LOGFILE%"
+	exit /b 6
+)
+REM Create remote root user
+echo [INFO] Creating remote root user... >> "%LOGFILE%"
+"%MYSQL_HOME%\\bin\\mysql" -uroot -p"%MYSQL_ROOT_PASSWORD%" -e "CREATE USER 'root'@'%' IDENTIFIED BY '${password}';"
+set CREATEUSER_ERR=%errorlevel%
+echo [INFO] Create remote root user return code: %CREATEUSER_ERR% >> "%LOGFILE%"
+if %CREATEUSER_ERR% neq 0 (
+	echo [ERROR] Create remote root user failed, code: %CREATEUSER_ERR% >> "%LOGFILE%"
+	pause
+	echo [ERROR] Script exited due to remote root user creation failure. >> "%LOGFILE%"
+	exit /b 7
+)
+REM Grant privileges to remote root user
+echo [INFO] Granting privileges to remote root user... >> "%LOGFILE%"
+"%MYSQL_HOME%\\bin\\mysql" -uroot -p"%MYSQL_ROOT_PASSWORD%" -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%';"
+set GRANT_ERR=%errorlevel%
+echo [INFO] Grant privileges return code: %GRANT_ERR% >> "%LOGFILE%"
+if %GRANT_ERR% neq 0 (
+	echo [ERROR] Grant privileges failed, code: %GRANT_ERR% >> "%LOGFILE%"
+	pause
+	echo [ERROR] Script exited due to grant privileges failure. >> "%LOGFILE%"
+	exit /b 8
+)
+REM Change local root password to mysql_native_password
+echo [INFO] Changing local root password to mysql_native_password... >> "%LOGFILE%"
+"%MYSQL_HOME%\\bin\\mysql" -uroot -p"%MYSQL_ROOT_PASSWORD%" -e "FLUSH PRIVILEGES; SET PASSWORD FOR 'root'@'localhost' = PASSWORD('${password}');"
+set ALTER_ERR=%errorlevel%
+echo [INFO] Change local root password return code: %ALTER_ERR% >> "%LOGFILE%"
+if %ALTER_ERR% neq 0 (
+	echo [ERROR] Change local root password failed, code: %ALTER_ERR% >> "%LOGFILE%"
+	pause
+	echo [ERROR] Script exited due to alter user failure. >> "%LOGFILE%"
+	exit /b 9
+)
+echo [INFO] MySQL install and config finished. >> "%LOGFILE%"
+echo MySQL install and config finished.
+echo.
+echo =============================================
+echo MySQL installation and configuration complete!
+echo You can now use MySQL.
+echo Please close this window manually when you are done.
+echo =============================================
+echo.
+echo [INFO] Script completed successfully. >> "%LOGFILE%"
+pause >nul
+
 REM Create desktop and start menu shortcuts
+echo [INFO] Creating desktop and start menu shortcuts. >> "%LOGFILE%"
 set "LnkFile=%USERPROFILE%\\Desktop\\MySQL Command Line Client.lnk"
 set "StartMenuLnkFile=%ProgramData%\\Microsoft\\Windows\\Start Menu\\Programs\\MySQL Command Line Client.lnk"
 set "IconFile=%MYSQL_HOME%\\mysqlico.ico"
 set "SrcFile=%MYSQL_HOME%\\bin\\mysql.exe"
 set "Args=-uroot -p"
+echo [INFO] Creating shortcut: %LnkFile% >> "%LOGFILE%"
 call :CreateShort "%SrcFile%" "%Args%" "%LnkFile%" "%IconFile%"
+echo [INFO] Creating shortcut: %StartMenuLnkFile% >> "%LOGFILE%"
 call :CreateShort "%SrcFile%" "%Args%" "%StartMenuLnkFile%" "%IconFile%"
 
+goto :eof
 :CreateShort
 REM %1=target exe, %2=args, %3=lnk path, %4=icon
+echo [INFO] Creating shortcut via VBS: %3 >> "%LOGFILE%"
 set "VBSFile=%temp%\\createshortcut.vbs"
 echo Set oWS = WScript.CreateObject("WScript.Shell") > "%VBSFile%"
 echo sLinkFile = WScript.Arguments(0) >> "%VBSFile%"
@@ -208,83 +420,12 @@ echo oLink.Save >> "%VBSFile%"
 cscript //nologo "%VBSFile%" "%~3" "%~1" "%~2" "%~4"
 del "%VBSFile%"
 exit /b
-
-REM Install MySQL service
-echo Install MySQL service...
-"%MYSQL_HOME%\\bin\\mysqld" install mysql
-set INSTALL_ERR=%errorlevel%
-echo Install MySQL service return code: %INSTALL_ERR%
-if %INSTALL_ERR% neq 0 (
-	echo Install MySQL service failed, code: %INSTALL_ERR% >> "%LOGFILE%"
-	pause
-	exit
-)
-REM Start MySQL service
-echo Start MySQL service...
-net start mysql
-set START_ERR=%errorlevel%
-echo Start MySQL service return code: %START_ERR%
-if %START_ERR% neq 0 (
-	echo Start MySQL service failed, code: %START_ERR% >> "%LOGFILE%"
-	pause
-	exit
-)
-REM Set root password
-echo Set root password...
-"%MYSQL_HOME%\\bin\\mysqladmin" -u root password "%MYSQL_ROOT_PASSWORD%"
-set PASS_ERR=%errorlevel%
-echo Set root password return code: %PASS_ERR%
-if %PASS_ERR% neq 0 (
-	echo Set root password failed, code: %PASS_ERR% >> "%LOGFILE%"
-	pause
-	exit
-)
-REM Create remote root user
-echo Create remote root user...
-"%MYSQL_HOME%\\bin\\mysql" -uroot -p"%MYSQL_ROOT_PASSWORD%" -e "CREATE USER 'root'@'%' IDENTIFIED BY '${password}';"
-set CREATEUSER_ERR=%errorlevel%
-echo Create remote root user return code: %CREATEUSER_ERR%
-if %CREATEUSER_ERR% neq 0 (
-	echo Create remote root user failed, code: %CREATEUSER_ERR% >> "%LOGFILE%"
-	pause
-	exit
-)
-REM Grant privileges to remote root user
-echo Grant privileges to remote root user...
-"%MYSQL_HOME%\\bin\\mysql" -uroot -p"%MYSQL_ROOT_PASSWORD%" -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%';"
-set GRANT_ERR=%errorlevel%
-echo Grant privileges return code: %GRANT_ERR%
-if %GRANT_ERR% neq 0 (
-	echo Grant privileges failed, code: %GRANT_ERR% >> "%LOGFILE%"
-	pause
-	exit
-)
-REM Change local root password to mysql_native_password
-echo Change local root password to mysql_native_password...
-"%MYSQL_HOME%\\bin\\mysql" -uroot -p"%MYSQL_ROOT_PASSWORD%" -e "FLUSH PRIVILEGES; SET PASSWORD FOR 'root'@'localhost' = PASSWORD('${password}');"
-set ALTER_ERR=%errorlevel%
-echo Change local root password return code: %ALTER_ERR%
-if %ALTER_ERR% neq 0 (
-	echo Change local root password failed, code: %ALTER_ERR% >> "%LOGFILE%"
-	pause
-	exit
-)
-echo MySQL install and config finished. >> "%LOGFILE%"
-echo MySQL install and config finished.
-echo.
-echo =============================================
-echo MySQL installation and configuration complete!
-echo You can now use MySQL.
-echo Please close this window manually when you are done.
-echo =============================================
-echo.
-pause >nul
-goto :eof
+pause
 `;
 
-// 主函数，按主版本号前两位选择模板
+// Main function, select template by first two digits of major version
 export function generateInstallAndShortcutBat(password = '123456', version = '8.0') {
-	// 只取主版本号前两位
+	// Only take first two digits of major version
 	let mainVer = '8.0';
 	const m = version.match(/(\d+\.\d+)/);
 	if (m) mainVer = m[1];
@@ -293,7 +434,7 @@ export function generateInstallAndShortcutBat(password = '123456', version = '8.
 	} else if (mainVer === '5.5' || mainVer === '5.6') {
 		return batTemplate55_56(password);
 	} else {
-		// 未匹配到合适模板时返回空字符串
+		// Return empty string when no suitable template is matched
 		return '';
 	}
 } 

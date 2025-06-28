@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>MySQL 脚本生成器</title>
   <script src="./js/tailwind.js"></script>
+  <script src="./js/jszip.min.js"></script>
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-purple-100 min-h-screen flex flex-col items-center py-10">
   <h1 class="text-4xl font-extrabold text-blue-800 mb-10 drop-shadow-lg tracking-tight">MySQL安装脚本生成器-a.d</h1>
@@ -28,6 +29,9 @@
       </button>
       <button id="download-all" class="bg-blue-700 hover:bg-blue-800 text-white rounded-lg px-6 py-3 font-semibold shadow flex items-center transition">
         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"/></svg> 一键全部下载
+      </button>
+      <button id="download-zip" class="bg-purple-600 hover:bg-purple-700 text-white rounded-lg px-6 py-3 font-semibold shadow flex items-center transition">
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg> 打包下载
       </button>
     </div>
   </div>
@@ -68,25 +72,56 @@
 
     document.getElementById('mysqlForm').onsubmit = function(e) {
       e.preventDefault();
+      
+      // 每次提交时都先隐藏操作按钮区域
+      document.getElementById('actions-area').classList.add('hidden');
+      
       const f = Object.fromEntries(new FormData(this));
+      
+      // 验证输入格式
+      const versionPattern = /^mysql-\d+\.\d+\.\d+-winx64$/;
+      if (!versionPattern.test(f.version)) {
+        alert('MySQL 版本格式不正确！\n正确格式：mysql-X.X.XX-winx64\n例如：mysql-8.0.39-winx64');
+        return;
+      }
+      
+      // 验证磁盘盘符
+      if (!/^[A-Za-z]$/.test(f.disk)) {
+        alert('磁盘盘符格式不正确！\n请输入单个字母，例如：D');
+        return;
+      }
+      
+      // 验证密码
+      if (!f.password || f.password.trim() === '') {
+        alert('请输入 root 密码！');
+        return;
+      }
+      
       const basedir = `${f.disk}:\\${f.version}`;
       const datadir = `${basedir}\\Data`;
       const versionType = getVersionType(f.version);
+      
+      // 检查 my.ini 模板
       if (!myiniTemplates[versionType]) {
-        alert('未匹配到合适的 my.ini 配置模板！');
+        alert('未匹配到合适的 my.ini 配置模板！\n请检查 MySQL 版本格式是否正确。');
         return;
       }
+      
+      // 生成 my.ini 配置
       let myini = myiniTemplates[versionType]
         .replace('{basedir}', basedir)
         .replace('{datadir}', datadir);
       document.getElementById('myini').value = myini;
+      
+      // 生成 bat 脚本
       const bat = generateInstallAndShortcutBat(f.password, f.version);
       if (!bat) {
-        alert('未匹配到合适的安装脚本模板！');
+        alert('未匹配到合适的安装脚本模板！\n请检查 MySQL 版本格式是否正确。');
         return;
       }
       document.getElementById('cmd').value = bat;
-      // 显示操作按钮区域
+      
+      // 只有在所有验证和生成都成功后才显示操作按钮区域
       document.getElementById('actions-area').classList.remove('hidden');
     };
 
@@ -149,6 +184,36 @@
       document.body.appendChild(icoA);
       icoA.click();
       document.body.removeChild(icoA);
+    };
+    
+    document.getElementById('download-zip').onclick = async () => {
+      const zip = new JSZip();
+      
+      // 添加 my.ini 文件（无 BOM）
+      const myiniContent = document.getElementById('myini').value;
+      zip.file('my.ini', myiniContent);
+      
+      // 添加 bat 文件（有 BOM）
+      const password = document.querySelector('[name="password"]').value || '123456';
+      const version = document.querySelector('[name="version"]').value || '8.0';
+      const bat = generateInstallAndShortcutBat(password, version);
+      zip.file('mysql_install.bat', '\uFEFF' + bat);
+      
+      // 添加 ico 文件
+      try {
+        const icoResponse = await fetch('./img/mysqlico.ico');
+        const icoBlob = await icoResponse.blob();
+        zip.file('mysqlico.ico', icoBlob);
+      } catch (error) {
+        console.warn('无法加载图标文件:', error);
+      }
+      
+      // 生成并下载 zip 文件
+      const zipBlob = await zip.generateAsync({type: 'blob'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(zipBlob);
+      a.download = 'mysql_install_package.zip';
+      a.click();
     };
   </script>
 </body>

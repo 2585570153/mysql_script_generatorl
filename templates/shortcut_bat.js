@@ -56,43 +56,47 @@ if %errorlevel% equ 0 (
 	exit /b 3
 )
 
-REM Add MySQL bin to system PATH
+REM Add MySQL bin to system PATH (simplified approach)
 echo ***************** Setting system environment variable PATH *****************
 echo.
 echo [INFO] Adding MySQL bin to system PATH. >> "%LOGFILE%"
-SET KEY_NAME=HKEY_LOCAL_MACHINE\\SYSTEM\\ControlSet001\\Control\\Session Manager\\Environment
-SET VALUE_NAME=path
-FOR /F "tokens=2*" %%A IN ('REG.exe query "%KEY_NAME%" /v "%VALUE_NAME%"') DO (set pInstallDir=%%B)
-SET pathvalue=%pInstallDir%
-:system_path_value
-SET setpath=0
-:loop
-for /f "tokens=1* delims=;" %%a in ("%pathvalue%") do (
-	if "%%a"=="%MYSQL_HOME%\\bin" (
-		SET setpath=1
-	) 
-::Assign remaining to original copy for next iteration
-set pathvalue=%%b
-)
-::If there's still remaining, continue splitting
-if defined pathvalue goto :loop
-if "%setpath%" == "1" (
+REM Check if MySQL bin is already in PATH
+echo %PATH% | find /i "%MYSQL_HOME%\\bin" >nul
+if %errorlevel% equ 0 (
 	echo [INFO] MySQL bin already in PATH. >> "%LOGFILE%"
 	echo ***************** Set system environment variable PATH success *****************
 	echo.
 ) else (
-	SETX /M "Path" "%pInstallDir%;%MYSQL_HOME%\\bin" >> "%LOGFILE%"
-	if %errorlevel% equ 0 (
-		echo [INFO] Add MySQL bin to PATH success. >> "%LOGFILE%"
-		echo **************** Set system environment variable PATH success ******************
-		echo.
+	echo [INFO] MySQL bin not in PATH, adding... >> "%LOGFILE%"
+	REM Use registry method directly (no PowerShell dependency)
+	reg query "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment" /v Path >nul 2>&1
+	if !errorlevel! equ 0 (
+		REM Get current PATH from registry
+		for /f "tokens=2,*" %%a in ('reg query "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment" /v Path 2^>nul') do set "CURRENT_PATH=%%b"
+		REM Add MySQL bin to PATH
+		reg add "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment" /v Path /t REG_EXPAND_SZ /d "!CURRENT_PATH!;%MYSQL_HOME%\\bin" /f >nul 2>&1
+		set REG_ERR=!errorlevel!
+		echo [DEBUG] Registry method exit code: !REG_ERR! >> "%LOGFILE%"
+		if !REG_ERR! equ 0 (
+			echo [INFO] Add MySQL bin to PATH success via registry. >> "%LOGFILE%"
+			echo **************** Set system environment variable PATH success ******************
+			echo.
+		) else (
+			echo [ERROR] Add MySQL bin to PATH failed. Registry: !REG_ERR! >> "%LOGFILE%"
+			echo ***************** Set system environment variable PATH failed *****************
+			echo Set system environment variable PATH failed >> "%LOGFILE%"
+			echo.
+			pause
+			echo [ERROR] Script exited due to PATH update failure. >> "%LOGFILE%"
+			exit /b 3
+		)
 	) else (
-		echo [ERROR] Add MySQL bin to PATH failed. >> "%LOGFILE%"
+		echo [ERROR] Cannot access registry PATH. >> "%LOGFILE%"
 		echo ***************** Set system environment variable PATH failed *****************
 		echo Set system environment variable PATH failed >> "%LOGFILE%"
 		echo.
 		pause
-		echo [ERROR] Script exited due to SETX PATH failure. >> "%LOGFILE%"
+		echo [ERROR] Script exited due to PATH update failure. >> "%LOGFILE%"
 		exit /b 3
 	)
 )
@@ -274,43 +278,47 @@ if %errorlevel% equ 0 (
 	exit /b 3
 )
 
-REM Add MySQL bin to system PATH
+REM Add MySQL bin to system PATH (simplified approach)
 echo ***************** Setting system environment variable PATH *****************
 echo.
 echo [INFO] Adding MySQL bin to system PATH. >> "%LOGFILE%"
-SET KEY_NAME=HKEY_LOCAL_MACHINE\\SYSTEM\\ControlSet001\\Control\\Session Manager\\Environment
-SET VALUE_NAME=path
-FOR /F "tokens=2*" %%A IN ('REG.exe query "%KEY_NAME%" /v "%VALUE_NAME%"') DO (set pInstallDir=%%B)
-SET pathvalue=%pInstallDir%
-:system_path_value
-SET setpath=0
-:loop
-for /f "tokens=1* delims=;" %%a in ("%pathvalue%") do (
-	if "%%a"=="%MYSQL_HOME%\\bin" (
-		SET setpath=1
-	) 
-::Assign remaining to original copy for next iteration
-set pathvalue=%%b
-)
-::If there's still remaining, continue splitting
-if defined pathvalue goto :loop
-if "%setpath%" == "1" (
+REM Check if MySQL bin is already in PATH
+echo %PATH% | find /i "%MYSQL_HOME%\\bin" >nul
+if %errorlevel% equ 0 (
 	echo [INFO] MySQL bin already in PATH. >> "%LOGFILE%"
 	echo ***************** Set system environment variable PATH success *****************
 	echo.
 ) else (
-	SETX /M "Path" "%pInstallDir%;%MYSQL_HOME%\\bin" >> "%LOGFILE%"
-	if %errorlevel% equ 0 (
-		echo [INFO] Add MySQL bin to PATH success. >> "%LOGFILE%"
-		echo **************** Set system environment variable PATH success ******************
-		echo.
+	echo [INFO] MySQL bin not in PATH, adding... >> "%LOGFILE%"
+	REM Use registry method directly (no PowerShell dependency)
+	reg query "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment" /v Path >nul 2>&1
+	if !errorlevel! equ 0 (
+		REM Get current PATH from registry
+		for /f "tokens=2,*" %%a in ('reg query "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment" /v Path 2^>nul') do set "CURRENT_PATH=%%b"
+		REM Add MySQL bin to PATH
+		reg add "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment" /v Path /t REG_EXPAND_SZ /d "!CURRENT_PATH!;%MYSQL_HOME%\\bin" /f >nul 2>&1
+		set REG_ERR=!errorlevel!
+		echo [DEBUG] Registry method exit code: !REG_ERR! >> "%LOGFILE%"
+		if !REG_ERR! equ 0 (
+			echo [INFO] Add MySQL bin to PATH success via registry. >> "%LOGFILE%"
+			echo **************** Set system environment variable PATH success ******************
+			echo.
+		) else (
+			echo [ERROR] Add MySQL bin to PATH failed. Registry: !REG_ERR! >> "%LOGFILE%"
+			echo ***************** Set system environment variable PATH failed *****************
+			echo Set system environment variable PATH failed >> "%LOGFILE%"
+			echo.
+			pause
+			echo [ERROR] Script exited due to PATH update failure. >> "%LOGFILE%"
+			exit /b 3
+		)
 	) else (
-		echo [ERROR] Add MySQL bin to PATH failed. >> "%LOGFILE%"
+		echo [ERROR] Cannot access registry PATH. >> "%LOGFILE%"
 		echo ***************** Set system environment variable PATH failed *****************
 		echo Set system environment variable PATH failed >> "%LOGFILE%"
 		echo.
 		pause
-		echo [ERROR] Script exited due to SETX PATH failure. >> "%LOGFILE%"
+		echo [ERROR] Script exited due to PATH update failure. >> "%LOGFILE%"
 		exit /b 3
 	)
 )

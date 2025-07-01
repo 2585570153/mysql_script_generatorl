@@ -95,9 +95,9 @@
         <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
         </svg>
-        磁盘盘符
+        安装路径
       </div>
-      <input name="disk" value="D" maxlength="1" required class="border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-300 group-hover:border-blue-300" />
+      <input name="path" value="D:\" required class="border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-300 group-hover:border-blue-300" />
     </label>
     
     <label class="flex flex-col gap-2 font-semibold text-gray-700 group">
@@ -256,9 +256,9 @@
         return;
       }
       
-      // 验证磁盘盘符
-      if (!/^[A-Za-z]$/.test(f.disk)) {
-        alert('磁盘盘符格式不正确！\n请输入单个字母，例如：D');
+      // 验证安装路径
+      if (!/^[A-Za-z]:\\/.test(f.path)) {
+        alert('安装路径格式不正确！\n请输入如 D:\\ 或 E:\\test\\ 这样的路径');
         return;
       }
       
@@ -268,7 +268,9 @@
         return;
       }
       
-      const basedir = `${f.disk}:\\${f.version}`;
+      let basePath = f.path;
+      if (!basePath.endsWith('\\')) basePath += '\\';
+      const basedir = `${basePath}${f.version}`;
       const datadir = `${basedir}\\Data`;
       const versionType = getVersionType(f.version);
       

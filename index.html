@@ -230,7 +230,7 @@
     </div>
   </div>
   <script type="module">
-    import { myiniTemplates } from './templates/myini_templates.js';
+    import { myiniTemplates, renderMyIni } from './templates/myini_templates.js';
     import { generateInstallAndShortcutBat } from './templates/shortcut_bat.js';
 
     function getVersionType(version) {
@@ -281,9 +281,10 @@
       }
       
       // 生成 my.ini 配置
-      let myini = myiniTemplates[versionType]
+      let config = myiniTemplates[versionType]
         .replace('{basedir}', basedir)
         .replace('{datadir}', datadir);
+      let myini = renderMyIni(versionType, config);
       document.getElementById('myini').value = myini;
       
       // 生成 bat 脚本
